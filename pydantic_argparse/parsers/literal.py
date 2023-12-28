@@ -27,11 +27,11 @@ else:  # pragma: >=3.8 cover
     from typing import Literal, get_args
 
 
-def should_parse(field: pydantic.fields.ModelField) -> bool:
+def should_parse(field: pydantic.Field) -> bool:
     """Checks whether the field should be parsed as a `literal`.
 
     Args:
-        field (pydantic.fields.ModelField): Field to check.
+        field (pydantic.Field): Field to check.
 
     Returns:
         bool: Whether the field should be parsed as a `literal`.
@@ -42,22 +42,23 @@ def should_parse(field: pydantic.fields.ModelField) -> bool:
 
 def parse_field(
     parser: argparse.ArgumentParser,
-    field: pydantic.fields.ModelField,
+    field: pydantic.Field,
+    name: str = None,
 ) -> Optional[utils.pydantic.PydanticValidator]:
     """Adds enum pydantic field to argument parser.
 
     Args:
         parser (argparse.ArgumentParser): Argument parser to add to.
-        field (pydantic.fields.ModelField): Field to be added to parser.
+        field (pydantic.Field): Field to be added to parser.
 
     Returns:
         Optional[utils.pydantic.PydanticValidator]: Possible validator method.
     """
     # Extract Choices
-    choices = get_args(field.outer_type_)
+    choices = get_args(field.annotation)
 
     # Compute Argument Intrinsics
-    is_flag = len(choices) == 1 and not bool(field.required)
+    is_flag = len(choices) == 1 and not bool(field.is_required())
     is_inverted = is_flag and field.get_default() is not None and field.allow_none
 
     # Determine Argument Properties
@@ -73,13 +74,14 @@ def parse_field(
     )
 
     # Add Literal Field
+    name, validator_name = utils.arguments.name(field, is_inverted, name=name)
     parser.add_argument(
-        utils.arguments.name(field, is_inverted),
+        name,
         action=action,
         help=utils.arguments.description(field),
         dest=field.alias,
         metavar=metavar,
-        required=bool(field.required),
+        required=bool(field.is_required()),
         **const,  # type: ignore[arg-type]
     )
 
@@ -88,4 +90,4 @@ def parse_field(
     mapping = {str(choice): choice for choice in choices}
 
     # Construct and Return Validator
-    return utils.pydantic.as_validator(field, lambda v: mapping[v])
+    return utils.pydantic.as_validator(validator_name, lambda v: mapping[v])

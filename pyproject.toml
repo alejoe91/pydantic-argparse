@@ -20,7 +20,7 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-pydantic = "^1.9.0"
+pydantic = "^2.4.0"
 importlib_metadata = { version = ">=4", python = "<3.8" }
 typing_extensions = { version = ">=4", python = "<3.8" }
 

@@ -13,7 +13,7 @@ from typing import Union
 
 
 # Constants
-PydanticError = Union[pydantic.ValidationError, pydantic.env_settings.SettingsError]
+PydanticError = Union[pydantic.ValidationError, pydantic.PydanticUserError]
 
 
 def format(error: PydanticError) -> str:  # noqa: A001

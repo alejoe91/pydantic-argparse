@@ -21,11 +21,11 @@ from pydantic_argparse import utils
 from typing import Optional, Type
 
 
-def should_parse(field: pydantic.fields.ModelField) -> bool:
+def should_parse(field: pydantic.Field) -> bool:
     """Checks whether the field should be parsed as an `enum`.
 
     Args:
-        field (pydantic.fields.ModelField): Field to check.
+        field (pydantic.Field): Field to check.
 
     Returns:
         bool: Whether the field should be parsed as an `enum`.
@@ -36,22 +36,23 @@ def should_parse(field: pydantic.fields.ModelField) -> bool:
 
 def parse_field(
     parser: argparse.ArgumentParser,
-    field: pydantic.fields.ModelField,
+    field: pydantic.Field,
+    name: str = None,
 ) -> Optional[utils.pydantic.PydanticValidator]:
     """Adds enum pydantic field to argument parser.
 
     Args:
         parser (argparse.ArgumentParser): Argument parser to add to.
-        field (pydantic.fields.ModelField): Field to be added to parser.
+        field (pydantic.Field): Field to be added to parser.
 
     Returns:
         Optional[utils.pydantic.PydanticValidator]: Possible validator method.
     """
     # Extract Enum
-    enum_type: Type[enum.Enum] = field.outer_type_
+    enum_type: Type[enum.Enum] = field.annotation
 
     # Compute Argument Intrinsics
-    is_flag = len(enum_type) == 1 and not bool(field.required)
+    is_flag = len(enum_type) == 1 and not bool(field.is_required())
     is_inverted = is_flag and field.get_default() is not None and field.allow_none
 
     # Determine Argument Properties
@@ -67,15 +68,17 @@ def parse_field(
     )
 
     # Add Enum Field
+    name, validator_name = utils.arguments.name(field, is_inverted, name=name)
+
     parser.add_argument(
-        utils.arguments.name(field, is_inverted),
+        name,
         action=action,
         help=utils.arguments.description(field),
         dest=field.alias,
         metavar=metavar,
-        required=bool(field.required),
+        required=bool(field.is_required()),
         **const,  # type: ignore[arg-type]
     )
 
     # Construct and Return Validator
-    return utils.pydantic.as_validator(field, lambda v: enum_type[v])
+    return utils.pydantic.as_validator(validator_name, lambda v: enum_type[v])

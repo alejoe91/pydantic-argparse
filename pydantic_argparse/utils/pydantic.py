@@ -12,6 +12,7 @@ import contextlib
 
 # Third-Party
 import pydantic
+import pydantic_settings
 
 # Typing
 from typing import Any, Callable, Dict, Optional, Type, TypeVar, Union
@@ -24,7 +25,7 @@ PydanticValidator = classmethod
 
 
 def as_validator(
-    field: pydantic.fields.ModelField,
+    name: str,
     caster: Callable[[str], Any],
 ) -> PydanticValidator:
     """Shortcut to wrap a caster and construct a validator for a given field.
@@ -36,7 +37,7 @@ def as_validator(
     validator will also cast empty strings to `None`.
 
     Args:
-        field (pydantic.fields.ModelField): Field to construct validator for.
+        field (pydantic.Field): Field to construct validator for.
         caster (Callable[[str], Any]): String to field type caster function.
 
     Returns:
@@ -50,7 +51,7 @@ def as_validator(
     # multiple times when being decorated as a `pydantic` validator. Note that
     # despite the `__validator` function *name* being reused, each instance of
     # the validator function is uniquely constructed for the supplied field.
-    @pydantic.validator(field.name, pre=True, allow_reuse=True)
+    @pydantic.validator(name, pre=True, allow_reuse=True)
     def __validator(cls: Type[Any], value: T) -> Union[T, None, Any]:
         if not isinstance(value, str):
             return value
@@ -64,7 +65,7 @@ def as_validator(
     # Rename the validator uniquely for this field to avoid any collisions. The
     # leading `__` and prefix of `pydantic_argparse` should guard against any
     # potential collisions with user defined validators.
-    __validator.__name__ = f"__pydantic_argparse_{field.name}"
+    __validator.__name__ = f"__pydantic_argparse_{name}"
 
     # Return the constructed validator
     return __validator
@@ -95,7 +96,7 @@ def model_with_validators(
 ) -> Type[PydanticModelT]:
     """Generates a new `pydantic` model class with the supplied validators.
 
-    If the supplied base model is a subclass of `pydantic.BaseSettings`, then 
+    If the supplied base model is a subclass of `pydantic_settings.BaseSettings`, then 
     the newly generated model will also have a new `parse_env_var` classmethod
     monkeypatched onto it that suppresses any exceptions raised when initially
     parsing the environment variables. This allows the raw values to still be
@@ -114,9 +115,10 @@ def model_with_validators(
         __base__=model,
         __validators__=validators,
     )
+    print(validators.keys())
 
     # Check if the model is a `BaseSettings`
-    if issubclass(model, pydantic.BaseSettings):
+    if issubclass(model, pydantic_settings.BaseSettings):
         # Hold a reference to the current `parse_env_var` classmethod
         parse_env_var = model.__config__.parse_env_var
 

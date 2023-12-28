@@ -22,11 +22,11 @@ from typing import Optional
 from pydantic_argparse import utils
 
 
-def should_parse(field: pydantic.fields.ModelField) -> bool:
+def should_parse(field: pydantic.Field) -> bool:
     """Checks whether the field should be parsed as a `container`.
 
     Args:
-        field (pydantic.fields.ModelField): Field to check.
+        field (pydantic.Field): Field to check.
 
     Returns:
         bool: Whether the field should be parsed as a `container`.
@@ -40,27 +40,29 @@ def should_parse(field: pydantic.fields.ModelField) -> bool:
 
 def parse_field(
     parser: argparse.ArgumentParser,
-    field: pydantic.fields.ModelField,
+    field: pydantic.Field,
+    name: str = None,
 ) -> Optional[utils.pydantic.PydanticValidator]:
     """Adds container pydantic field to argument parser.
 
     Args:
         parser (argparse.ArgumentParser): Argument parser to add to.
-        field (pydantic.fields.ModelField): Field to be added to parser.
+        field (pydantic.Field): Field to be added to parser.
 
     Returns:
         Optional[utils.pydantic.PydanticValidator]: Possible validator method.
     """
     # Add Container Field
+    name, validator_name = utils.arguments.name(field, name=name)
     parser.add_argument(
-        utils.arguments.name(field),
+        name,
         action=argparse._StoreAction,
         nargs=argparse.ONE_OR_MORE,
         help=utils.arguments.description(field),
         dest=field.alias,
         metavar=field.alias.upper(),
-        required=bool(field.required),
+        required=bool(field.is_required()),
     )
 
     # Construct and Return Validator
-    return utils.pydantic.as_validator(field, lambda v: v)
+    return utils.pydantic.as_validator(validator_name, lambda v: v)

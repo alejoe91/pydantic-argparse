@@ -472,18 +472,18 @@ def test_version_message(capsys: pytest.CaptureFixture[str]) -> None:
         "argument_name",
         "argument_field",
     ),
-    conf.TestModel.__fields__.items()
+    conf.TestModel.model_fields.items()
 )
 def test_argument_descriptions(
     argument_name: str,
-    argument_field: pydantic.fields.ModelField,
+    argument_field: pydantic.Field,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Tests Argument Descriptions.
 
     Args:
         argument_name (str): Argument name.
-        argument_field (pydantic.fields.ModelField): Argument pydantic field.
+        argument_field (pydantic.Field): Argument pydantic field.
         capsys (pytest.CaptureFixture[str]): Fixture to capture STDOUT/STDERR.
     """
     # Create ArgumentParser
