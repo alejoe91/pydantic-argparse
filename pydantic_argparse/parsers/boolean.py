@@ -59,13 +59,14 @@ def parse_field(
     )
 
     # Add Boolean Field
-    name, validator_name = utils.arguments.name(field, is_inverted, name)
+    argument_name, validator_name = utils.arguments.name(field, is_inverted, name)
+    dest_name = field.alias if field.alias is not None else name
 
     parser.add_argument(
-        name,
+        argument_name,
         action=action,
         help=utils.arguments.description(field),
-        dest=field.alias,
+        dest=dest_name,
         required=bool(field.is_required()),
     )
 

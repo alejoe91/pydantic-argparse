@@ -53,14 +53,16 @@ def parse_field(
         Optional[utils.pydantic.PydanticValidator]: Possible validator method.
     """
     # Add Container Field
-    name, validator_name = utils.arguments.name(field, name=name)
+    argument_name, validator_name = utils.arguments.name(field, name=name)
+    dest_name = field.alias if field.alias is not None else name
+
     parser.add_argument(
-        name,
+        argument_name,
         action=argparse._StoreAction,
         nargs=argparse.ONE_OR_MORE,
         help=utils.arguments.description(field),
-        dest=field.alias,
-        metavar=field.alias.upper(),
+        dest=dest_name,
+        metavar=dest_name.upper(),
         required=bool(field.is_required()),
     )
 

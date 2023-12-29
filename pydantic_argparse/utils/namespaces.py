@@ -31,5 +31,19 @@ def to_dict(namespace: argparse.Namespace) -> Dict[str, Any]:
             # Recurse
             dictionary[key] = to_dict(value)
 
+    # split nested structure
+    keys = list(dictionary.keys())
+    for key in keys:
+        if "/" in key:
+            sub_keys = key.split("/")
+            value = dictionary.pop(key)
+            parent_dict = dictionary
+            for sub_key in sub_keys[:-1]:
+                # recureively add sub-dictionaries
+                if sub_key not in parent_dict:
+                    parent_dict[sub_key] = {}
+                parent_dict = parent_dict[sub_key]
+            parent_dict[sub_keys[-1]] = value
+
     # Return
     return dictionary

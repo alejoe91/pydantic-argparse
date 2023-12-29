@@ -115,7 +115,6 @@ def model_with_validators(
         __base__=model,
         __validators__=validators,
     )
-    print(validators.keys())
 
     # Check if the model is a `BaseSettings`
     if issubclass(model, pydantic_settings.BaseSettings):

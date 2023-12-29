@@ -23,6 +23,7 @@ def name(field: pydantic.Field, invert: bool = False, name: str = None) -> str:
     # Construct Prefix
     prefix = "--no-" if invert else "--"
 
+    # Prepend prefix, replace '_' with '-'
     if field.alias is None:
         assert name is not None, "Argument name must be specified if field has no alias."
         argument_name = f"{prefix}{name.replace('_', '-')}"
@@ -32,10 +33,6 @@ def name(field: pydantic.Field, invert: bool = False, name: str = None) -> str:
             name = field.alias
     validator_name = name        
 
-    validator_name = name
-    print(f"Arg name: {argument_name} -- Validator name: {validator_name}")
-
-    # Prepend prefix, replace '_' with '-'
     return argument_name, validator_name
 
 

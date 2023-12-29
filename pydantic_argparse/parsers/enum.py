@@ -68,13 +68,14 @@ def parse_field(
     )
 
     # Add Enum Field
-    name, validator_name = utils.arguments.name(field, is_inverted, name=name)
+    argument_name, validator_name = utils.arguments.name(field, is_inverted, name=name)
+    dest_name = field.alias if field.alias is not None else name
 
     parser.add_argument(
-        name,
+        argument_name,
         action=action,
         help=utils.arguments.description(field),
-        dest=field.alias,
+        dest=dest_name,
         metavar=metavar,
         required=bool(field.is_required()),
         **const,  # type: ignore[arg-type]

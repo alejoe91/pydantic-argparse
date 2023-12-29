@@ -77,7 +77,7 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
         epilog: Optional[str] = None,
         add_help: bool = True,
         exit_on_error: bool = True,
-        add_models_as_commands: bool = False,
+        add_nested_models_as_subparsers: bool = False,
     ) -> None:
         """Instantiates the Typed Argument Parser with its `pydantic` model.
 
@@ -89,8 +89,9 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
             epilog (Optional[str]): Optional text following help message.
             add_help (bool): Whether to add a `-h`/`--help` flag.
             exit_on_error (bool): Whether to exit on error.
-            add_models_as_commands (bool): Whether to add nested models as
-                sub-commands or nested options.
+            add_nested_models_as_subparsers (bool): Whether to add nested 
+                models as sub-commands. If False, nested arguments will be
+                separated by a / charachter.
         """
         # Initialise Super Class
         if sys.version_info < (3, 9):  # pragma: <3.9 cover
@@ -116,7 +117,7 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
         self.version = version
         self.add_help = add_help
         self.exit_on_error = exit_on_error
-        self.add_models_as_commands = add_models_as_commands
+        self.add_nested_models_as_subparsers = add_nested_models_as_subparsers
 
         # Add Arguments Groups
         self._subcommands: Optional[argparse._SubParsersAction] = None
@@ -157,13 +158,12 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
 
         # Convert Namespace to Dictionary
         arguments = utils.namespaces.to_dict(namespace)
-
+        
         # Handle Possible Validation Errors
         try:
             # Convert Namespace to Pydantic Model
             model = self.model.model_validate(arguments)
-
-        except (pydantic.ValidationError, pydantic.env_settings.SettingsError) as exc:
+        except pydantic.ValidationError as exc:
             # Catch exceptions, and use the ArgumentParser.error() method
             # to report it to the user
             self.error(utils.errors.format(exc))
@@ -282,11 +282,10 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
         # Loop through fields in model
         for name, field in model.model_fields.items():
             # Add field(s)
-            validator_list = self._add_field(name, field)
+            validator = self._add_field(name, field)
 
             # Update validators
-            for validator in validator_list:
-                utils.pydantic.update_validators(validators, validator)
+            utils.pydantic.update_validators(validators, validator)
 
         # Construct and return model with validators
         return utils.pydantic.model_with_validators(model, validators)
@@ -299,47 +298,45 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
             field (pydantic.Field): Field to be added to parser.
 
         Returns:
-            List[utils.pydantic.PydanticValidator]: List of added validators.
+            utils.pydantic.PydanticValidator: List of added validators.
         """
         if parsers.command.should_parse(field): 
-            if self.add_models_as_commands:
+            if self.add_nested_models_as_subparsers:
                 # Add Command
-                validator_list = parsers.command.parse_field(self._commands(), field, name)
+                validator = parsers.command.parse_field(self._commands(), field, name)
             else:
-                validator_list = self._add_fields_from_model(
+                # TODO: make proper validator for submodels
+                prefix = name if field.alias is None else field.alias # nested
+                validator = self._add_fields_from_model(
                     model=field.annotation,
-                    prefix=name
+                    prefix=prefix
                 )
         elif parsers.boolean.should_parse(field):
             # Add Boolean Field
-            validator_list = parsers.boolean.parse_field(self, field, name)
+            validator = parsers.boolean.parse_field(self, field, name)
 
         elif parsers.container.should_parse(field):
             # Add Container Field
-            validator_list = parsers.container.parse_field(self, field, name)
+            validator = parsers.container.parse_field(self, field, name)
 
         elif parsers.mapping.should_parse(field):
             # Add Mapping Field
-            validator_list = parsers.mapping.parse_field(self, field, name)
+            validator = parsers.mapping.parse_field(self, field, name)
 
         elif parsers.literal.should_parse(field):
             # Add Literal Field
-            validator_list = parsers.literal.parse_field(self, field, name)
+            validator = parsers.literal.parse_field(self, field, name)
 
         elif parsers.enum.should_parse(field):
             # Add Enum Field
-            validator_list = parsers.enum.parse_field(self, field, name)
+            validator = parsers.enum.parse_field(self, field, name)
 
         else:
             # Add Standard Field
-            validator_list = parsers.standard.parse_field(self, field, name)
+            validator = parsers.standard.parse_field(self, field, name)
 
-        # Make sure validator list is a list
-        if not isinstance(validator_list, list):
-            validator_list = [validator_list]
-
-        # Return Validator list
-        return validator_list
+        # Return Validator
+        return validator
 
     def _add_fields_from_model(
         self,
@@ -353,14 +350,15 @@ class ArgumentParser(argparse.ArgumentParser, Generic[PydanticModelT]):
                 argument parser.
             prefix (str): Prefix to add to the argument names.
         """
-        validators = []
+        validators = {}
         # Loop through fields in model
         for name, field in model.model_fields.items():
             if prefix:
                 # Add prefix to name
-                field.alias = f"{prefix}_{name}"
+                field.alias = f"{prefix}/{name}"
             # Add field
             validator = self._add_field(name, field)
-            validators.extend(validator)
+            validators[name] = validator
 
-        return validators
+        # TODO: make proper validator for submodels
+        return None
